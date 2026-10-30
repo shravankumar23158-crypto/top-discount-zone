@@ -103,7 +103,7 @@ let activeCategory="All";
 let cart=JSON.parse(localStorage.getItem("tdz-cart")||"[]");
 const grid=document.getElementById("productGrid");
 const search=document.getElementById("searchInput");
-function money(n){return "₹"+Number(n).toLocaleString("en-IN")}
+<a class="buy" href="${p.link||'#'}" ${p.link?'target="_blank" rel="sponsored noopener"':"onclick=\"event.preventDefault();alert('Add this product seller link in the products list first.')\""}>BUY NOW</a></div></article>`).join(""):`<div class="empty">No products found. Try another search.</div>`;
 function renderProducts(){
  const q=search.value.trim().toLowerCase();
  const found=products.filter(p=>(activeCategory==="All"||p.category===activeCategory)&&p.name.toLowerCase().includes(q));
