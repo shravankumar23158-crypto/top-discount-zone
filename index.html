@@ -31,7 +31,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(5,17,37,.96);backdrop-fi
 .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:17px}
 .card{background:linear-gradient(160deg,#102b50,#091a34);border:1px solid #17416f;border-radius:15px;padding:13px;min-width:0;transition:.2s}
 .card:hover{transform:translateY(-4px);border-color:var(--cyan);box-shadow:0 12px 28px #00102088}
-.product-art{height:155px;border-radius:11px;background:radial-gradient(circle at 50% 40%,#1d70c5,#0a1c38 70%);display:grid;place-items:center;font-size:64px;margin-bottom:13px}
+.product-art{height:155px;border-radius:11px;background:radial-gradient(circle at 50% 40%,#1d70c5,#0a1c38 70%);display:grid;place-items:center;font-size:64px;margin-bottom:13px;overflow:hidden}.product-art img{width:100%;height:100%;object-fit:contain;display:block}
 .card h3{font-size:16px;margin:5px 0 8px}.price{font-size:19px;font-weight:800;color:var(--cyan);margin:0 0 12px}.actions{display:flex;gap:8px}.actions button,.actions a{flex:1;text-align:center;border:0;border-radius:8px;padding:10px 7px;font-size:12px;font-weight:bold;cursor:pointer}
 .add{background:#153b67;color:#dff6ff;border:1px solid #168bff!important}.buy{background:linear-gradient(90deg,#0878ff,#00cfff);color:#00152c}
 .empty{grid-column:1/-1;text-align:center;color:var(--muted);padding:35px;border:1px dashed #28527e;border-radius:12px}
@@ -97,14 +97,8 @@ footer{border-top:1px solid #17385e;padding:25px 0;color:#91a8c5;font-size:13px;
 </aside>
 
 <script>
-// Edit this list: update product names, prices, icons, categories and seller links.
-const products = [
- {id:1,name:"boAt Airdopes 141",price:559,category:"Audio",icon:"🎧",link:""},
- {id:2,name:"Bluetooth Speaker PRO",price:289,category:"Audio",icon:"🔊",link:""},
- {id:3,name:"Bluetooth Wireless Car",price:498,category:"Accessories",icon:"🚗",link:""},
- {id:4,name:"Analog Watch",price:359,category:"Wearables",icon:"⌚",link:""},
- {id:5,name:"Smartwatch",price:779,category:"Wearables",icon:"⌚",link:""}
-];
+// Product list is loaded from products.csv in this same folder.
+let products = [];
 let activeCategory="All";
 let cart=JSON.parse(localStorage.getItem("tdz-cart")||"[]");
 const grid=document.getElementById("productGrid");
@@ -114,7 +108,7 @@ function renderProducts(){
  const q=search.value.trim().toLowerCase();
  const found=products.filter(p=>(activeCategory==="All"||p.category===activeCategory)&&p.name.toLowerCase().includes(q));
  grid.innerHTML=found.length?found.map(p=>`
- <article class="card"><div class="product-art">${p.icon}</div><h3>${p.name}</h3><p class="price">${money(p.price)}</p>
+ <article class="card"><div class="product-art">${p.image?`<img src="${p.image}" alt="${p.name}">`:p.icon}</div><h3>${p.name}</h3><p class="price">${money(p.price)}</p>
  <div class="actions"><button class="add" onclick="addToCart(${p.id})">ADD TO CART</button>
  <a class="buy" href="${p.link||'#'}" ${p.link?'target="_blank" rel="sponsored noopener"':'onclick="event.preventDefault();alert(\\'Add this product seller link in the products list first.\\')"'}>BUY NOW</a></div></article>`).join(""):`<div class="empty">No products found. Try another search.</div>`;
 }
@@ -135,7 +129,41 @@ document.getElementById("filters").addEventListener("click",e=>{const b=e.target
 document.getElementById("cartOpen").addEventListener("click",openCart);
 document.getElementById("cartClose").addEventListener("click",closeCart);
 document.getElementById("backdrop").addEventListener("click",closeCart);
-renderProducts();renderCart();
+
+function parseCSV(text){
+ const rows=[]; let row=[], field="", quoted=false;
+ for(let i=0;i<text.length;i++){
+   const c=text[i], next=text[i+1];
+   if(c==='"' && quoted && next==='"'){field+='"';i++}
+   else if(c==='"'){quoted=!quoted}
+   else if(c===',' && !quoted){row.push(field);field=""}
+   else if((c==='\n'||c==='\r')&&!quoted){
+     if(c==='\r'&&next==='\n')i++;
+     row.push(field);
+     if(row.some(v=>v.trim()!==""))rows.push(row);
+     row=[];field="";
+   } else field+=c;
+ }
+ if(field.length||row.length){row.push(field);rows.push(row)}
+ if(!rows.length)return [];
+ const headers=rows.shift().map(x=>x.trim().toLowerCase());
+ return rows.map((cols,i)=>{
+   const obj={}; headers.forEach((h,j)=>obj[h]=(cols[j]||"").trim());
+   return {id:Number(obj.id)||i+1,name:obj.name||"Product",price:Number((obj.price||"0").replace(/[₹,\s]/g,""))||0,category:obj.category||"Accessories",image:obj.image||"",icon:obj.icon||"🛍️",link:obj.link||""};
+ });
+}
+async function loadProducts(){
+ try{
+   const response=await fetch("./products.csv?update="+Date.now());
+   if(!response.ok)throw new Error("products.csv not found");
+   products=parseCSV(await response.text());
+   renderProducts();renderCart();
+ }catch(err){
+   grid.innerHTML='<div class="empty">Could not load products.csv. Upload it next to index.html in your GitHub repository.</div>';
+ }
+}
+
+loadProducts();
 </script>
 </body>
 </html>
